@@ -11,7 +11,7 @@ VIEWS = {
 }
 ap = argparse.ArgumentParser(); ap.add_argument("base"); ap.add_argument("plat"); ap.add_argument("out")
 ap.add_argument("--pages", default=""); ap.add_argument("--channel", default=None); ap.add_argument("--engine", default="chromium")
-ap.add_argument("--headed", action="store_true"); ap.add_argument("--shots", default="index.html"); ap.add_argument("--wait", type=int, default=1500)
+ap.add_argument("--headed", action="store_true"); ap.add_argument("--shots", default="index.html"); ap.add_argument("--wait", type=int, default=1200)
 a = ap.parse_args()
 base = a.base.rstrip("/"); out = pathlib.Path(a.out); out.mkdir(parents=True, exist_ok=True)
 
@@ -64,8 +64,10 @@ async def main():
         if a.channel: kw["channel"] = a.channel
         if a.headed and a.engine == "chromium": kw["ignore_default_args"] = ["--hide-scrollbars"]
         b = await eng.launch(**kw)
-        for label, w, h, dpr in VIEWS[a.plat]:
-            await run_view(b, label, w, h, dpr, pages, report)
+        # първите два размера минават всички страници, останалите само началната и страниците със снимки
+        for n, (label, w, h, dpr) in enumerate(VIEWS[a.plat]):
+            ps = pages if n < 2 else [p for p in pages if p in a.shots.split(",")] or pages[:1]
+            await run_view(b, label, w, h, dpr, ps, report)
             (out / "report.json").write_text(json.dumps(report, ensure_ascii=False, indent=1), encoding="utf-8")
         await b.close()
     kinds = {}

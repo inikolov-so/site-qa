@@ -2,7 +2,7 @@
 import sys, asyncio, json, argparse
 from playwright.async_api import async_playwright
 ap = argparse.ArgumentParser(); ap.add_argument("url"); ap.add_argument("--engine", default="chromium"); ap.add_argument("--channel", default="chrome")
-ap.add_argument("--w", type=int, default=1536); ap.add_argument("--h", type=int, default=730); ap.add_argument("--dpr", type=float, default=1.25); a = ap.parse_args()
+ap.add_argument("--headed", action="store_true"); ap.add_argument("--w", type=int, default=1536); ap.add_argument("--h", type=int, default=730); ap.add_argument("--dpr", type=float, default=1.25); a = ap.parse_args()
 LOG = """(()=>{const o=CanvasRenderingContext2D.prototype.drawImage;window.__draws=[];window.__filmTrace=[];CanvasRenderingContext2D.prototype.drawImage=function(s,...r){window.__draws.push([performance.now(),s.width,r[0],r[1],r[2]]);return o.call(this,s,...r)};
 window.__rafs=[];(function t(x){window.__rafs.push(x);requestAnimationFrame(t)})(0)})()"""
 ok = []; 
@@ -12,6 +12,7 @@ async def main():
   async with async_playwright() as p:
     eng = getattr(p, a.engine); kw = {}
     if a.engine == "chromium": kw["channel"] = a.channel
+    if a.headed: kw["headless"] = False
     b = await eng.launch(**kw)
     ctx = await b.new_context(viewport={"width": a.w, "height": a.h}, device_scale_factor=a.dpr)
     pg = await ctx.new_page(); await pg.add_init_script(LOG)

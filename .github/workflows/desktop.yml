@@ -2,16 +2,20 @@ name: desktop
 on:
   workflow_dispatch:
     inputs:
-      url: {description: "Адрес на сайта", required: true}
-      pages: {description: "Страници, разделени със запетая (празно = всички от менюто)", required: false, default: ""}
+      bundle: {description: "Таг на пакета (qa.sh го качва). Празно = проверка на адрес", required: false, default: ""}
+      url: {description: "Адрес на сайта, ако няма пакет", required: false, default: "http://127.0.0.1:8000"}
+      pages: {description: "Страници, разделени със запетая (празно = всички)", required: false, default: ""}
       shots: {description: "Страници със снимки на всяка стъпка", required: false, default: "index.html"}
+permissions:
+  contents: read
 jobs:
   windows:
     runs-on: windows-latest
-    timeout-minutes: 60
+    timeout-minutes: 90
     env:
       PYTHONUTF8: "1"
       PYTHONIOENCODING: utf-8
+      GH_TOKEN: ${{ github.token }}
     strategy:
       fail-fast: false
       matrix:
@@ -21,12 +25,16 @@ jobs:
       - uses: actions/setup-python@v5
         with: {python-version: "3.12"}
       - run: pip install playwright==1.55.0
-      - name: Шрифтове и настройки
-        run: |
-          Get-CimInstance Win32_OperatingSystem | Select-Object Caption, Version | Format-List
-          Get-CimInstance Win32_VideoController | Select-Object Name, CurrentHorizontalResolution, CurrentVerticalResolution | Format-List
       - name: Проверка
-        run: python drivers/pw.py "${{ inputs.url }}" windows out/${{ matrix.channel }} --channel ${{ matrix.channel }} --headed --pages "${{ inputs.pages }}" --shots "${{ inputs.shots }}"
+        shell: bash
+        run: |
+          if [ -n "${{ inputs.bundle }}" ]; then
+            gh release download "${{ inputs.bundle }}" -p site.tgz; mkdir -p _site; tar xzf site.tgz -C _site
+            (cd _site && python -m http.server 8000 >/dev/null 2>&1 &)
+            sleep 2
+          fi
+          python drivers/pw.py "${{ inputs.url }}" windows out/${{ matrix.channel }} --channel ${{ matrix.channel }} --headed --pages "${{ inputs.pages }}" --shots "${{ inputs.shots }}"
+          if [ -f tests/detent_test.py ] && [ "${{ matrix.channel }}" = "chrome" ]; then python tests/detent_test.py "${{ inputs.url }}/index.html" --headed | tee out/chrome/detent.txt || true; fi
       - uses: actions/upload-artifact@v4
         if: always()
         with: {name: "windows-${{ matrix.channel }}", path: out, retention-days: 14}
