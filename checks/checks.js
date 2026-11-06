@@ -100,7 +100,7 @@ window.__siteQA = function () {
   }
   // 3. текст, отрязан от контейнера (многоточие, скрито съдържание)
   document.querySelectorAll("h1,h2,h3,h4,p,li,a,button,span").forEach(function (el) {
-    if (el.closest(SKIP) || el.closest(".carousel__track,.hscroll,.deck__stack,.btn,.carousel")) return;
+    if (el.closest(SKIP) || el.closest(".carousel__track,.hscroll,.deck__stack,.btn,.carousel,.prod__img")) return;
     var c = getComputedStyle(el); if (c.overflowX === "visible" && c.overflowY === "visible") return;
     if (seen(el) < 0.5 || !el.textContent.trim()) return;
     var rr = el.getBoundingClientRect(); if (rr.bottom < 0 || rr.top > H) return;

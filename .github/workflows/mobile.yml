@@ -25,7 +25,7 @@ jobs:
           xcrun simctl boot "$UDID"; xcrun simctl bootstatus "$UDID"
       - name: Проверка
         run: |
-          if [ -n "${{ inputs.bundle }}" ]; then gh release download "${{ inputs.bundle }}" -p site.tgz; mkdir -p _site; tar xzf site.tgz -C _site; (cd _site && python3 -m http.server 8000 >/dev/null 2>&1 &); sleep 2; fi
+          if [ -n "${{ inputs.bundle }}" ]; then gh release download "${{ inputs.bundle }}" -p site.tgz; mkdir -p _site; tar xzf site.tgz -C _site; (python3 drivers/serve.py _site 8000 >/dev/null 2>&1 &); sleep 2; fi
           python3 drivers/remote.py "${{ inputs.url }}" ios out/ios --pages "${{ inputs.pages }}" --shots "${{ inputs.shots }}"
       - uses: actions/upload-artifact@v4
         if: always()
@@ -41,7 +41,7 @@ jobs:
           sudo udevadm control --reload-rules; sudo udevadm trigger --name-match=kvm
       - name: Пакетът
         run: |
-          if [ -n "${{ inputs.bundle }}" ]; then gh release download "${{ inputs.bundle }}" -p site.tgz; mkdir -p _site; tar xzf site.tgz -C _site; nohup python3 -m http.server 8000 --directory _site >/dev/null 2>&1 & sleep 2; fi
+          if [ -n "${{ inputs.bundle }}" ]; then gh release download "${{ inputs.bundle }}" -p site.tgz; mkdir -p _site; tar xzf site.tgz -C _site; nohup python3 drivers/serve.py _site 8000 >/dev/null 2>&1 & sleep 2; fi
       - uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 34

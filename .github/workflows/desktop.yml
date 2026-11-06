@@ -30,7 +30,7 @@ jobs:
         run: |
           if [ -n "${{ inputs.bundle }}" ]; then
             gh release download "${{ inputs.bundle }}" -p site.tgz; mkdir -p _site; tar xzf site.tgz -C _site
-            (cd _site && python -m http.server 8000 >/dev/null 2>&1 &)
+            (python drivers/serve.py _site 8000 >/dev/null 2>&1 &)
             sleep 2
           fi
           python drivers/pw.py "${{ inputs.url }}" windows out/${{ matrix.channel }} --channel ${{ matrix.channel }} --headed --pages "${{ inputs.pages }}" --shots "${{ inputs.shots }}"
