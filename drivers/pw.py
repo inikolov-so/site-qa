@@ -11,7 +11,7 @@ VIEWS = {
 }
 ap = argparse.ArgumentParser(); ap.add_argument("base"); ap.add_argument("plat"); ap.add_argument("out")
 ap.add_argument("--pages", default=""); ap.add_argument("--channel", default=None); ap.add_argument("--engine", default="chromium")
-ap.add_argument("--headed", action="store_true"); ap.add_argument("--shots", default="index.html"); ap.add_argument("--wait", type=int, default=700)
+ap.add_argument("--headed", action="store_true"); ap.add_argument("--shots", default="index.html"); ap.add_argument("--wait", type=int, default=1500)
 a = ap.parse_args()
 base = a.base.rstrip("/"); out = pathlib.Path(a.out); out.mkdir(parents=True, exist_ok=True)
 

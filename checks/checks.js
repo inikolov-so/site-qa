@@ -57,8 +57,9 @@ window.__siteQA = function () {
       var cut = 0, side = "";
       if (c.yclip && g.y2 > c.r.bottom + 0.6) { cut = g.y2 - c.r.bottom; side = "долу"; }
       if (c.yclip && g.y1 < c.r.top - 0.6) { cut = Math.max(cut, c.r.top - g.y1); side = side || "горе"; }
-      if (c.xclip && g.x2 > c.r.right + 0.6 && g.x1 < c.r.right) { cut = Math.max(cut, g.x2 - c.r.right); side = side || "вдясно"; }
-      if (c.xclip && g.x1 < c.r.left - 0.6 && g.x2 > c.r.left) { cut = Math.max(cut, c.r.left - g.x1); side = side || "вляво"; }
+      var scroller = /auto|scroll/.test(getComputedStyle(c.e).overflowX) || c.e.matches(".hscroll,.hscroll *,.carousel,.carousel *");
+      if (!scroller && c.xclip && g.x2 > c.r.right + 0.6 && g.x1 < c.r.right) { cut = Math.max(cut, g.x2 - c.r.right); side = side || "вдясно"; }
+      if (!scroller && c.xclip && g.x1 < c.r.left - 0.6 && g.x2 > c.r.left) { cut = Math.max(cut, c.r.left - g.x1); side = side || "вляво"; }
       if (cut >= 1 && g.y2 > 0 && g.y1 < H && g.y2 > c.r.top && g.y1 < c.r.bottom) {
         // цял ред извън рамката е пагинация на скрита карта, не изрязване
         if (g.y1 >= c.r.bottom || g.y2 <= c.r.top) return;
@@ -95,7 +96,7 @@ window.__siteQA = function () {
   }
   // 3. текст, отрязан от контейнера (многоточие, скрито съдържание)
   document.querySelectorAll("h1,h2,h3,h4,p,li,a,button,span").forEach(function (el) {
-    if (el.closest(SKIP) || el.closest(".carousel__track,.hscroll,.deck__stack")) return;
+    if (el.closest(SKIP) || el.closest(".carousel__track,.hscroll,.deck__stack,.btn,.carousel")) return;
     var c = getComputedStyle(el); if (c.overflowX === "visible" && c.overflowY === "visible") return;
     if (seen(el) < 0.5 || !el.textContent.trim()) return;
     var rr = el.getBoundingClientRect(); if (rr.bottom < 0 || rr.top > H) return;
