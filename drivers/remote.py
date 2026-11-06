@@ -113,11 +113,15 @@ if a.plat == "android":
         open_url(f"http://{HOST}:{a.port}/index.html"); time.sleep(6)
         info = json.loads(ev("(function(){var w=document.querySelector('[data-walk]'),s=w.querySelector('.walk__stage');var t=w.getBoundingClientRect().top+scrollY;return JSON.stringify({top:t,end:t+w.offsetHeight-s.offsetHeight,n:w.querySelectorAll('.walk__frame').length,frames:w.classList.contains('has-frames')})})()"))
         print(info); stop = lambda i: info["top"] + (info["end"] - info["top"]) * i / (info["n"] - 1)
-        Y = lambda: ev("scrollY")
+        def Y():
+            # чака края на прехода: емулаторът няма видеокарта и е в пъти по-бавен от телефон
+            time.sleep(1.2); t = time.time()
+            while time.time() - t < 25 and ev("document.querySelector('[data-walk]').classList.contains('is-moving')"): time.sleep(0.4)
+            time.sleep(0.9); return ev("scrollY")
         for i in (1, 2, 3):
-            swipe(420); time.sleep(3.2); y = Y(); check(f"един жест → спирка {i}", abs(y - stop(i)) < 6, round(y)); shot(f"detent_{i}.png")
-        swipe(-420); time.sleep(3.2); y = Y(); check("жест нагоре → спирка 2", abs(y - stop(2)) < 6, round(y))
-        swipe(1100); time.sleep(3.2); y = Y(); check("дълъг силен жест → само спирка 3", abs(y - stop(3)) < 6, round(y))
+            swipe(420); y = Y(); check(f"един жест → спирка {i}", abs(y - stop(i)) < 6, round(y)); shot(f"detent_{i}.png")
+        swipe(-420); y = Y(); check("жест нагоре → спирка 2", abs(y - stop(2)) < 6, round(y))
+        swipe(1100); y = Y(); check("дълъг силен жест → само спирка 3", abs(y - stop(3)) < 6, round(y))
     except Exception as e: check("тест на жестовете", False, str(e)[:160])
     (out / "detent.json").write_text(json.dumps(res, ensure_ascii=False), encoding="utf-8")
 for l in sorted(set(logs)): report.append({"page": "", "view": a.plat, "kind": "error", "text": l})
