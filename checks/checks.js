@@ -61,7 +61,7 @@ window.__siteQA = function () {
       var cut = 0, side = "";
       if (c.yclip && g.y2 > c.r.bottom + 0.6) { cut = g.y2 - c.r.bottom; side = "долу"; }
       if (c.yclip && g.y1 < c.r.top - 0.6) { cut = Math.max(cut, c.r.top - g.y1); side = side || "горе"; }
-      var scroller = /auto|scroll/.test(getComputedStyle(c.e).overflowX) || c.e.matches(".hscroll,.hscroll *,.carousel,.carousel *");
+      var scroller = /auto|scroll/.test(getComputedStyle(c.e).overflowX) || !!g.el.closest(".hscroll,.carousel");
       if (!scroller && c.xclip && g.x2 > c.r.right + 0.6 && g.x1 < c.r.right) { cut = Math.max(cut, g.x2 - c.r.right); side = side || "вдясно"; }
       if (!scroller && c.xclip && g.x1 < c.r.left - 0.6 && g.x2 > c.r.left) { cut = Math.max(cut, c.r.left - g.x1); side = side || "вляво"; }
       if (cut >= 1 && g.y2 > 0 && g.y1 < H && g.y2 > c.r.top && g.y1 < c.r.bottom) {
