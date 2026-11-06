@@ -1,0 +1,27 @@
+name: detent
+on:
+  workflow_dispatch:
+    inputs:
+      bundle: {description: "Таг на пакета", required: true}
+permissions:
+  contents: read
+jobs:
+  windows:
+    runs-on: windows-latest
+    timeout-minutes: 15
+    env:
+      PYTHONUTF8: "1"
+      PYTHONIOENCODING: utf-8
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.12"}
+      - run: pip install playwright==1.55.0
+      - name: Колелото на Windows
+        shell: bash
+        run: |
+          gh release download "${{ inputs.bundle }}" -p site.tgz; mkdir -p _site; tar xzf site.tgz -C _site
+          (python drivers/serve.py _site 8000 >/dev/null 2>&1 &)
+          sleep 2
+          python tests/detent_test.py "http://127.0.0.1:8000/index.html" --headed

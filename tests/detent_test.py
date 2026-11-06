@@ -44,15 +44,24 @@ async def main():
     check("филмът върви само напред, без неточни кадри", back==0 and miss==0, f"най-голям скок {big}")
     # 2. бързо въртене: спира на следващата, не прелита
     await pg.wait_for_timeout(700)
-    for _ in range(26): await pg.mouse.wheel(0, 100); await pg.wait_for_timeout(45)
-    await idle()
+    # върти, докато филмът стигне, и още 1,2 сек: колелото още се върти след щрака. Мери логиката, не скоростта на машината.
+    async def spin(fn, after=1200, limit=12000):
+        t = 0; seen = False; done = None
+        while t < limit:
+            await fn(); await pg.wait_for_timeout(45); t += 60
+            mv = await pg.evaluate("document.querySelector('[data-walk]').classList.contains('is-moving')")
+            seen = seen or mv
+            if seen and not mv and done is None: done = t
+            if done is not None and t - done >= after: break
+    async def notch(): await pg.mouse.wheel(0, 100)
+    await spin(notch); await idle()
     r = await at(2); check("бързо въртене (26 щрака) → само спирка 2", r[0], r[1])
     # 3. тракпад: едно плъзване с дълга инерция
     await pg.wait_for_timeout(800)
-    v = 60.0
-    for _ in range(90):
-        await pg.mouse.wheel(0, v); v = max(0.6, v*0.965); await pg.wait_for_timeout(14)
-    await idle()
+    v = [60.0]
+    async def inertia():
+        await pg.mouse.wheel(0, v[0]); v[0] = max(0.6, v[0]*0.965)
+    await spin(inertia, after=1500); await idle()
     r = await at(3); check("тракпад с инерция → само спирка 3", r[0], r[1])
     # 4. малко докосване не мести
     await pg.wait_for_timeout(900); await pg.mouse.wheel(0, 6); await pg.wait_for_timeout(900)
