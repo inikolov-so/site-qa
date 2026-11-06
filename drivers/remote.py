@@ -10,12 +10,12 @@ ap.add_argument("--shots", default="index.html"); ap.add_argument("--wait", type
 a = ap.parse_args(); base = a.base.rstrip("/"); out = pathlib.Path(a.out); out.mkdir(parents=True, exist_ok=True)
 AGENT = CHECKS + r"""
 ;(function(){var id=Math.random().toString(36).slice(2);
- function loop(){fetch('/__qa/cmd?id='+id).then(function(r){return r.json()}).then(function(c){if(c&&c.js!=null){var res,err=null;try{res=(0,eval)(c.js)}catch(e){err=String(e)}
-   return fetch('/__qa/res',{method:'POST',body:JSON.stringify({n:c.n,res:res===undefined?null:res,err:err})})}}).then(loop,function(){setTimeout(loop,500)})}
+ function loop(){fetch('/__qa/cmd?id='+id).then(function(r){return r.json()}).then(function(c){if(c&&c.stop)throw 'stop';if(c&&c.js!=null){var res,err=null;try{res=(0,eval)(c.js)}catch(e){err=String(e)}
+   return fetch('/__qa/res',{method:'POST',body:JSON.stringify({n:c.n,res:res===undefined?null:res,err:err})})}}).then(loop,function(e){if(e!=='stop')setTimeout(loop,500)})}
  window.addEventListener('error',function(e){fetch('/__qa/log',{method:'POST',body:'js: '+e.message})});
- fetch('/__qa/hello',{method:'POST',body:location.pathname}).then(loop)})();
+ fetch('/__qa/hello?id='+id,{method:'POST',body:location.pathname}).then(loop)})();
 """
-cmds = queue.Queue(); results = {}; hello = threading.Event(); logs = []; counter = [0]
+current = [""]; cmds = queue.Queue(); results = {}; hello = threading.Event(); logs = []; counter = [0]
 class H(BaseHTTPRequestHandler):
     protocol_version = "HTTP/1.1"
     def log_message(self, *x): pass
@@ -25,12 +25,13 @@ class H(BaseHTTPRequestHandler):
         self.end_headers(); self.wfile.write(body)
     def do_POST(self):
         n = int(self.headers.get("Content-Length") or 0); raw = self.rfile.read(n).decode("utf-8", "ignore")
-        if self.path == "/__qa/hello": hello.set()
+        if self.path.startswith("/__qa/hello"): current[0] = self.path.split("id=")[-1]; hello.set()
         elif self.path == "/__qa/res": d = json.loads(raw); results[d["n"]] = d
         elif self.path == "/__qa/log": logs.append(raw[:200])
         self._send(200, b"{}")
     def do_GET(self):
         if self.path.startswith("/__qa/cmd"):
+            if self.path.split("id=")[-1] != current[0]: return self._send(200, b'{"stop":1}')   # стар раздел: край
             try: c = cmds.get(timeout=20)
             except queue.Empty: c = {}
             return self._send(200, json.dumps(c).encode())
@@ -56,8 +57,14 @@ def ev(js, timeout=30):
     return r["res"]
 def sh(c, **k): return subprocess.run(c, shell=True, text=True, capture_output=True, **k)
 HOST = "127.0.0.1" if a.plat == "ios" else "10.0.2.2"
+opened = [False]
 def open_url(u):
     hello.clear()
+    if opened[0]:                                     # същият раздел: иначе телефонът трупа раздели
+        counter[0] += 1; cmds.put({"n": counter[0], "js": f"location.href={json.dumps(u)};1"})
+        if hello.wait(45): return
+        print("в същия раздел не стана, нов раздел", flush=True); hello.clear()
+    opened[0] = True
     if a.plat == "ios": print(sh(f'xcrun simctl openurl booted "{u}"').stderr[:200])
     else: print(sh(f'adb shell am start -a android.intent.action.VIEW -d "{u}" -n com.android.chrome/com.google.android.apps.chrome.Main').stdout[:120])
     if not hello.wait(90): raise TimeoutError("страницата не отговори: " + u)
@@ -78,8 +85,8 @@ ps = pages(); print(len(ps), "страници")
 for pg in ps:
     try:
         open_url(f"http://{HOST}:{a.port}/{pg}")
-        time.sleep(3.5)
-        facts = ev("JSON.stringify(__siteQAFacts())"); facts = json.loads(facts)
+        time.sleep(5 if pg == ps[0] else 3)
+        facts = ev("JSON.stringify(__siteQAFacts())", 60); facts = json.loads(facts)
         if pg == ps[0]: print(a.plat, facts, flush=True)
         y = 0; i = 0; h = facts["h"]; seen = set(); shoot = pg in a.shots.split(",")
         while True:
