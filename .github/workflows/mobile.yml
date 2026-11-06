@@ -51,7 +51,7 @@ jobs:
           disable-animations: false
           emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim
           script: |
-            adb shell 'echo "_ --disable-fre --no-default-browser-check --no-first-run" > /data/local/tmp/chrome-command-line'; adb shell am set-debug-app --persistent com.android.chrome || true; adb shell pm list packages | grep -E "chrome|webview" || true; python3 drivers/remote.py "${{ inputs.url }}" android out/android --pages "${{ inputs.pages }}" --shots "${{ inputs.shots }}"
+            adb shell 'echo "_ --disable-fre --no-default-browser-check --no-first-run --disable-features=Translate" > /data/local/tmp/chrome-command-line'; adb shell pm grant com.android.chrome android.permission.POST_NOTIFICATIONS || true; adb shell am set-debug-app --persistent com.android.chrome || true; adb shell pm list packages | grep -E "chrome|webview" || true; python3 drivers/remote.py "${{ inputs.url }}" android out/android --pages "${{ inputs.pages }}" --shots "${{ inputs.shots }}"
       - uses: actions/upload-artifact@v4
         if: always()
         with: {name: android, path: out, retention-days: 14}

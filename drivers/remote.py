@@ -31,9 +31,11 @@ class H(BaseHTTPRequestHandler):
         self._send(200, b"{}")
     def do_GET(self):
         if self.path.startswith("/__qa/cmd"):
-            if self.path.split("id=")[-1] != current[0]: return self._send(200, b'{"stop":1}')   # стар раздел: край
-            try: c = cmds.get(timeout=20)
-            except queue.Empty: c = {}
+            me = self.path.split("id=")[-1]; t0 = time.time(); c = {}
+            while time.time() - t0 < 20:                    # кратки цикли: заявка на стара страница не бива да глътне команда
+                if me != current[0]: return self._send(200, b'{"stop":1}')
+                try: c = cmds.get(timeout=0.2); break
+                except queue.Empty: pass
             return self._send(200, json.dumps(c).encode())
         url = base + self.path
         try:
@@ -67,7 +69,7 @@ def open_url(u):
     opened[0] = True
     if a.plat == "ios": print(sh(f'xcrun simctl openurl booted "{u}"').stderr[:200])
     else: print(sh(f'adb shell am start -a android.intent.action.VIEW -d "{u}" -n com.android.chrome/com.google.android.apps.chrome.Main').stdout[:120])
-    if not hello.wait(90): raise TimeoutError("страницата не отговори: " + u)
+    if not hello.wait(180): opened[0] = False; raise TimeoutError("страницата не отговори: " + u)
 def shot(name):
     p = out / name
     if a.plat == "ios": sh(f'xcrun simctl io booted screenshot "{p}"')
