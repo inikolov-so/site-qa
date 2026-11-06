@@ -6,6 +6,7 @@ on:
       url: {description: "Адрес на сайта, ако няма пакет", required: false, default: "http://127.0.0.1:8000"}
       pages: {description: "Страници (празно = всички)", required: false, default: ""}
       shots: {description: "Страници със снимки", required: false, default: "index.html"}
+      only: {description: "ios или android; празно = и двете", required: false, default: ""}
 permissions:
   contents: read
 env:
@@ -13,6 +14,7 @@ env:
   GH_TOKEN: ${{ github.token }}
 jobs:
   ios:
+    if: inputs.only != 'android'
     runs-on: macos-latest
     timeout-minutes: 45
     steps:
@@ -31,6 +33,7 @@ jobs:
         if: always()
         with: {name: ios, path: out, retention-days: 14}
   android:
+    if: inputs.only != 'ios'
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
@@ -51,7 +54,7 @@ jobs:
           disable-animations: false
           emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim
           script: |
-            adb shell 'echo "_ --disable-fre --no-default-browser-check --no-first-run --disable-features=Translate" > /data/local/tmp/chrome-command-line'; adb shell pm grant com.android.chrome android.permission.POST_NOTIFICATIONS || true; adb shell am set-debug-app --persistent com.android.chrome || true; adb shell pm list packages | grep -E "chrome|webview" || true; python3 drivers/remote.py "${{ inputs.url }}" android out/android --pages "${{ inputs.pages }}" --shots "${{ inputs.shots }}"
+            adb shell 'echo "_ --disable-fre --no-default-browser-check --no-first-run --disable-features=Translate" > /data/local/tmp/chrome-command-line'; adb shell pm grant com.android.chrome android.permission.POST_NOTIFICATIONS || true; adb shell settings put global hide_error_dialogs 1 || true; sleep 45; adb shell am set-debug-app --persistent com.android.chrome || true; adb shell pm list packages | grep -E "chrome|webview" || true; python3 drivers/remote.py "${{ inputs.url }}" android out/android --pages "${{ inputs.pages }}" --shots "${{ inputs.shots }}"
       - uses: actions/upload-artifact@v4
         if: always()
         with: {name: android, path: out, retention-days: 14}
