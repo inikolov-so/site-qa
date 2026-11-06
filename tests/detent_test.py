@@ -46,13 +46,14 @@ async def main():
     await pg.wait_for_timeout(700)
     # върти, докато филмът стигне, и още 1,2 сек: колелото още се върти след щрака. Мери логиката, не скоростта на машината.
     async def spin(fn, after=1200, limit=12000):
-        t = 0; seen = False; done = None
-        while t < limit:
-            await fn(); await pg.wait_for_timeout(45); t += 60
+        import time
+        t0 = time.monotonic(); seen = False; done = None
+        while (time.monotonic() - t0) * 1000 < limit:
+            await fn(); await pg.wait_for_timeout(45)
             mv = await pg.evaluate("document.querySelector('[data-walk]').classList.contains('is-moving')")
             seen = seen or mv
-            if seen and not mv and done is None: done = t
-            if done is not None and t - done >= after: break
+            if seen and not mv and done is None: done = time.monotonic()
+            if done is not None and (time.monotonic() - done) * 1000 >= after: break
     async def notch(): await pg.mouse.wheel(0, 100)
     await spin(notch); await idle()
     r = await at(2); check("бързо въртене (26 щрака) → само спирка 2", r[0], r[1])
