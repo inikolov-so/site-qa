@@ -11,13 +11,17 @@ window.__siteQA = function () {
 
   // 1. страницата не бива да се скролва настрани
   var sw = document.documentElement.scrollWidth, cw = document.documentElement.clientWidth;
-  if (sw > cw + 1) push("overflow-x", document.body, "", { scrollWidth: sw, clientWidth: cw });
+  if (sw > cw + 1) {
+    var culprit = null, far = 0;
+    document.querySelectorAll("body *").forEach(function (e) { var r = e.getBoundingClientRect(); if (r.right > far && r.width > 0) { var cl = false; for (var p = e.parentElement; p && p !== document.body; p = p.parentElement) { if (getComputedStyle(p).overflowX !== "visible") { cl = true; break; } } if (!cl) { far = r.right; culprit = e; } } });
+    push("overflow-x", culprit || document.body, "", { scrollWidth: sw, clientWidth: cw, right: Math.round(far) });
+  }
 
   // 2. мастилото на всеки видим знак
   var lines = [], tw = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT), n;
   while ((n = tw.nextNode())) {
     var txt = n.textContent; if (!txt.trim()) continue;
-    var el = n.parentElement; if (!el || el.closest(SKIP)) continue;
+    var el = n.parentElement; if (!el || el.closest(SKIP) || el.closest(".rv-line")) continue;   // .rv-line: заглавие в средата на разкриване
     var op = seen(el); if (op < 0.5) continue;
     var cs = getComputedStyle(el), size = parseFloat(cs.fontSize); if (size < 9) continue;
     var r0 = document.createRange(); r0.selectNodeContents(n);
@@ -53,7 +57,7 @@ window.__siteQA = function () {
   var clipped = {};
   lines.forEach(function (g) {
     clipsOf(g.el).forEach(function (c) {
-      if (c.path) return;
+      if (c.path || c.e.matches(".deck")) return;                        // картите в полет излизат от тестето нарочно
       var cut = 0, side = "";
       if (c.yclip && g.y2 > c.r.bottom + 0.6) { cut = g.y2 - c.r.bottom; side = "долу"; }
       if (c.yclip && g.y1 < c.r.top - 0.6) { cut = Math.max(cut, c.r.top - g.y1); side = side || "горе"; }
@@ -103,7 +107,7 @@ window.__siteQA = function () {
     if (el.scrollWidth > el.clientWidth + 2 || el.scrollHeight > el.clientHeight + 2) push("truncated", el, el.textContent, { sw: el.scrollWidth, cw: el.clientWidth, sh: el.scrollHeight, ch: el.clientHeight });
   });
   // 4. липсващ шрифт: заглавия с резервен шрифт
-  ["Oswald", "Montserrat"].forEach(function (f) { if (document.fonts && document.documentElement.innerHTML.indexOf(f) > -1 && !document.fonts.check('500 20px "' + f + '"', "Щ")) push("font-missing", null, f); });
+  if (document.fonts) document.fonts.forEach(function (f) { if (f.status === "error") push("font-missing", null, f.family + " " + f.weight); });
   return out;
 };
 window.__siteQAFacts = function () {
