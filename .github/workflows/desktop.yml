@@ -1,0 +1,29 @@
+name: desktop
+on:
+  workflow_dispatch:
+    inputs:
+      url: {description: "Адрес на сайта", required: true}
+      pages: {description: "Страници, разделени със запетая (празно = всички от менюто)", required: false, default: ""}
+      shots: {description: "Страници със снимки на всяка стъпка", required: false, default: "index.html"}
+jobs:
+  windows:
+    runs-on: windows-latest
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        channel: [chrome, msedge]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.12"}
+      - run: pip install playwright==1.55.0
+      - name: Шрифтове и настройки
+        run: |
+          Get-CimInstance Win32_OperatingSystem | Select-Object Caption, Version | Format-List
+          Get-CimInstance Win32_VideoController | Select-Object Name, CurrentHorizontalResolution, CurrentVerticalResolution | Format-List
+      - name: Проверка
+        run: python drivers/pw.py "${{ inputs.url }}" windows out/${{ matrix.channel }} --channel ${{ matrix.channel }} --headed --pages "${{ inputs.pages }}" --shots "${{ inputs.shots }}"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with: {name: "windows-${{ matrix.channel }}", path: out, retention-days: 14}
