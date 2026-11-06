@@ -79,7 +79,7 @@ async def main():
     # 9. релсата и прескачането
     await pg.wait_for_timeout(700); await pg.click(".walk__rail button:nth-child(2)"); await idle()
     r = await at(1); check("релсата води до спирка 1", r[0], r[1])
-    await pg.wait_for_timeout(300); await pg.click(".walk__skip"); await idle()
+    await pg.wait_for_timeout(300); await pg.click(".walk__skip"); await pg.wait_for_timeout(1900)
     y = await Y(); check("„Прескочи“ излиза от филма", y > info["end"], round(y))
     check("без JS грешки", not errs, errs[:2])
     await b.close()
