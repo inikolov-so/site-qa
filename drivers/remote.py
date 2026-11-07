@@ -105,23 +105,30 @@ for pg in ps:
     except Exception as e:
         report.append({"page": pg, "view": a.plat, "kind": "load-failed", "text": str(e)[:200]}); print("!!", pg, e, flush=True)
     (out / "report.json").write_text(json.dumps(report, ensure_ascii=False, indent=1), encoding="utf-8")
-# зъбното колело с истински пръст (Android)
+# скрол-филмът с истински пръст (Android), режим Soft: филмът върви с пръста, спирките задържат, нищо не тръгва само
 if a.plat == "android":
     res = []
     def check(n, c, i=""): res.append([n, bool(c), i]); print("ДА " if c else "НЕ ", n, i, flush=True)
     try:
         open_url(f"http://{HOST}:{a.port}/index.html"); time.sleep(6)
         info = json.loads(ev("(function(){var w=document.querySelector('[data-walk]'),s=w.querySelector('.walk__stage');var t=w.getBoundingClientRect().top+scrollY;return JSON.stringify({top:t,end:t+w.offsetHeight-s.offsetHeight,n:w.querySelectorAll('.walk__frame').length,frames:w.classList.contains('has-frames')})})()"))
-        print(info); stop = lambda i: info["top"] + (info["end"] - info["top"]) * i / (info["n"] - 1)
-        def Y():
-            # чака края на прехода: емулаторът няма видеокарта и е в пъти по-бавен от телефон
-            time.sleep(1.2); t = time.time()
-            while time.time() - t < 25 and ev("document.querySelector('[data-walk]').classList.contains('is-moving')"): time.sleep(0.4)
-            time.sleep(0.9); return ev("scrollY")
-        for i in (1, 2, 3):
-            swipe(420); y = Y(); check(f"един жест → спирка {i}", abs(y - stop(i)) < 6, round(y)); shot(f"detent_{i}.png")
-        swipe(-420); y = Y(); check("жест нагоре → спирка 2", abs(y - stop(2)) < 6, round(y))
-        swipe(1100); y = Y(); check("дълъг силен жест → само спирка 3", abs(y - stop(3)) < 6, round(y))
+        print(info)
+        def Sv():
+            # чака да спре: емулаторът няма видеокарта и е в пъти по-бавен от телефон
+            time.sleep(1.5); a1 = ev("document.querySelector('[data-walk]')._s"); t = time.time()
+            while time.time() - t < 20:
+                time.sleep(0.6); a2 = ev("document.querySelector('[data-walk]')._s")
+                if a2 == a1: break
+                a1 = a2
+            return a1 or 0
+        swipe(120); s = Sv(); check("малък жест на спирка 0 → кадърът стои", abs(s) < 1e-3, round(s, 3)); shot("detent_0.png")
+        seen = []
+        for i in range(5):
+            swipe(420); seen.append(round(Sv(), 3)); shot(f"detent_{i+1}.png")
+        print("   s след всеки жест:", seen)
+        check("филмът върви с пръста на стъпки", len(set(seen)) >= 3 and all(y >= x - 1e-3 for x, y in zip(seen, seen[1:])), seen)
+        check("един жест не прелита повече от спирка", all(y - x <= 1.05 for x, y in zip([0] + seen, seen)))
+        swipe(-420); swipe(-420); s = Sv(); check("жестове нагоре връщат филма", s < seen[-1], (seen[-1], round(s, 3)))
     except Exception as e: check("тест на жестовете", False, str(e)[:160])
     (out / "detent.json").write_text(json.dumps(res, ensure_ascii=False), encoding="utf-8")
 for l in sorted(set(logs)): report.append({"page": "", "view": a.plat, "kind": "error", "text": l})
