@@ -15,13 +15,17 @@ jobs:
       GH_TOKEN: ${{ github.token }}
     steps:
       - uses: actions/checkout@v4
+      - name: Ключ
+        shell: bash
+        env: {QA_KEY: "${{ secrets.QA_KEY }}"}
+        run: printf '%s' "$QA_KEY" > .qa_key
       - uses: actions/setup-python@v5
         with: {python-version: "3.12"}
       - run: pip install playwright==1.55.0
       - name: Колелото на Windows
         shell: bash
         run: |
-          gh release download "${{ inputs.bundle }}" -p site.tgz; mkdir -p _site; tar xzf site.tgz -C _site
+          gh release download "${{ inputs.bundle }}" -p site.tgz.enc; openssl enc -d -aes-256-cbc -pbkdf2 -iter 100000 -md sha256 -pass file:.qa_key -in site.tgz.enc -out site.tgz; mkdir -p _site; tar xzf site.tgz -C _site
           (python drivers/serve.py _site 8000 >/dev/null 2>&1 &)
           sleep 2
           python tests/detent_test.py "http://127.0.0.1:8000/index.html" --headed

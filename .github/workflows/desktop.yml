@@ -22,6 +22,10 @@ jobs:
         channel: [chrome, msedge]
     steps:
       - uses: actions/checkout@v4
+      - name: Ключ
+        shell: bash
+        env: {QA_KEY: "${{ secrets.QA_KEY }}"}
+        run: printf '%s' "$QA_KEY" > .qa_key
       - uses: actions/setup-python@v5
         with: {python-version: "3.12"}
       - run: pip install playwright==1.55.0
@@ -29,12 +33,16 @@ jobs:
         shell: bash
         run: |
           if [ -n "${{ inputs.bundle }}" ]; then
-            gh release download "${{ inputs.bundle }}" -p site.tgz; mkdir -p _site; tar xzf site.tgz -C _site
+            gh release download "${{ inputs.bundle }}" -p site.tgz.enc; openssl enc -d -aes-256-cbc -pbkdf2 -iter 100000 -md sha256 -pass file:.qa_key -in site.tgz.enc -out site.tgz; mkdir -p _site; tar xzf site.tgz -C _site
             (python drivers/serve.py _site 8000 >/dev/null 2>&1 &)
             sleep 2
           fi
           python drivers/pw.py "${{ inputs.url }}" windows out/${{ matrix.channel }} --channel ${{ matrix.channel }} --headed --pages "${{ inputs.pages }}" --shots "${{ inputs.shots }}"
           if [ -f tests/detent_test.py ] && [ "${{ matrix.channel }}" = "chrome" ]; then python tests/detent_test.py "${{ inputs.url }}/index.html" --headed | tee out/chrome/detent.txt || true; fi
+      - name: Шифроване на резултатите
+        if: always()
+        shell: bash
+        run: if [ -d out ]; then tar czf out.tgz out && openssl enc -aes-256-cbc -pbkdf2 -iter 100000 -md sha256 -salt -pass file:.qa_key -in out.tgz -out out.tgz.enc && rm -rf out out.tgz; fi
       - uses: actions/upload-artifact@v4
         if: always()
-        with: {name: "windows-${{ matrix.channel }}", path: out, retention-days: 14}
+        with: {name: "windows-${{ matrix.channel }}", path: out.tgz.enc, retention-days: 14}

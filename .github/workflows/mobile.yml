@@ -19,6 +19,10 @@ jobs:
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
+      - name: Ключ
+        shell: bash
+        env: {QA_KEY: "${{ secrets.QA_KEY }}"}
+        run: printf '%s' "$QA_KEY" > .qa_key
       - name: Симулатор
         run: |
           xcrun simctl list devices available | grep -E "iPhone" | head -20
@@ -27,24 +31,32 @@ jobs:
           xcrun simctl boot "$UDID"; xcrun simctl bootstatus "$UDID"
       - name: Проверка
         run: |
-          if [ -n "${{ inputs.bundle }}" ]; then gh release download "${{ inputs.bundle }}" -p site.tgz; mkdir -p _site; tar xzf site.tgz -C _site; (python3 drivers/serve.py _site 8000 >/dev/null 2>&1 &); sleep 2; fi
+          if [ -n "${{ inputs.bundle }}" ]; then gh release download "${{ inputs.bundle }}" -p site.tgz.enc; openssl enc -d -aes-256-cbc -pbkdf2 -iter 100000 -md sha256 -pass file:.qa_key -in site.tgz.enc -out site.tgz; mkdir -p _site; tar xzf site.tgz -C _site; (python3 drivers/serve.py _site 8000 >/dev/null 2>&1 &); sleep 2; fi
           python3 drivers/remote.py "${{ inputs.url }}" ios out/ios --pages "${{ inputs.pages }}" --shots "${{ inputs.shots }}"
+      - name: Шифроване на резултатите
+        if: always()
+        shell: bash
+        run: if [ -d out ]; then tar czf out.tgz out && openssl enc -aes-256-cbc -pbkdf2 -iter 100000 -md sha256 -salt -pass file:.qa_key -in out.tgz -out out.tgz.enc && rm -rf out out.tgz; fi
       - uses: actions/upload-artifact@v4
         if: always()
-        with: {name: ios, path: out, retention-days: 14}
+        with: {name: ios, path: out.tgz.enc, retention-days: 14}
   android:
     if: inputs.only != 'ios'
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
+      - name: Ключ
+        shell: bash
+        env: {QA_KEY: "${{ secrets.QA_KEY }}"}
+        run: printf '%s' "$QA_KEY" > .qa_key
       - name: KVM
         run: |
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
           sudo udevadm control --reload-rules; sudo udevadm trigger --name-match=kvm
       - name: Пакетът
         run: |
-          if [ -n "${{ inputs.bundle }}" ]; then gh release download "${{ inputs.bundle }}" -p site.tgz; mkdir -p _site; tar xzf site.tgz -C _site; nohup python3 drivers/serve.py _site 8000 >/dev/null 2>&1 & sleep 2; fi
+          if [ -n "${{ inputs.bundle }}" ]; then gh release download "${{ inputs.bundle }}" -p site.tgz.enc; openssl enc -d -aes-256-cbc -pbkdf2 -iter 100000 -md sha256 -pass file:.qa_key -in site.tgz.enc -out site.tgz; mkdir -p _site; tar xzf site.tgz -C _site; nohup python3 drivers/serve.py _site 8000 >/dev/null 2>&1 & sleep 2; fi
       - uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 34
@@ -55,6 +67,10 @@ jobs:
           emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim
           script: |
             adb shell 'echo "_ --disable-fre --no-default-browser-check --no-first-run --disable-features=Translate" > /data/local/tmp/chrome-command-line'; adb shell pm grant com.android.chrome android.permission.POST_NOTIFICATIONS || true; adb shell settings put global hide_error_dialogs 1 || true; sleep 45; adb shell am set-debug-app --persistent com.android.chrome || true; adb shell pm list packages | grep -E "chrome|webview" || true; python3 drivers/remote.py "${{ inputs.url }}" android out/android --pages "${{ inputs.pages }}" --shots "${{ inputs.shots }}"
+      - name: Шифроване на резултатите
+        if: always()
+        shell: bash
+        run: if [ -d out ]; then tar czf out.tgz out && openssl enc -aes-256-cbc -pbkdf2 -iter 100000 -md sha256 -salt -pass file:.qa_key -in out.tgz -out out.tgz.enc && rm -rf out out.tgz; fi
       - uses: actions/upload-artifact@v4
         if: always()
-        with: {name: android, path: out, retention-days: 14}
+        with: {name: android, path: out.tgz.enc, retention-days: 14}
