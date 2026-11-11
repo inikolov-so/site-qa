@@ -39,6 +39,7 @@ jobs:
           fi
           python drivers/pw.py "${{ inputs.url }}" windows out/${{ matrix.channel }} --channel ${{ matrix.channel }} --headed --pages "${{ inputs.pages }}" --shots "${{ inputs.shots }}"
           if [ -f tests/detent_test.py ] && [ "${{ matrix.channel }}" = "chrome" ]; then python tests/detent_test.py "${{ inputs.url }}/index.html" --headed | tee out/chrome/detent.txt || true; fi
+          if [ -f tests/nav_test.py ] && [ "${{ matrix.channel }}" = "chrome" ]; then python tests/nav_test.py "${{ inputs.url }}" --channel chrome --device win | tee out/chrome/nav.txt || true; fi
       - name: Шифроване на резултатите
         if: always()
         shell: bash
