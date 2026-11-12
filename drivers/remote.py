@@ -72,6 +72,7 @@ def open_url(u):
     if not hello.wait(180): opened[0] = False; raise TimeoutError("страницата не отговори: " + u)
 def shot(name):
     p = out / name
+    p.parent.mkdir(parents=True, exist_ok=True)  # страници в подпапки (free/x/index.html)
     if a.plat == "ios": sh(f'xcrun simctl io booted screenshot "{p}"')
     else:
         with open(p, "wb") as f: subprocess.run("adb exec-out screencap -p", shell=True, stdout=f)
